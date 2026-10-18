@@ -1,58 +1,50 @@
-# Stremio for webOS
+# StremioR — Stremio for LG webOS
 
-Custom Stremio app for LG webOS TVs with working default audio language selection.
+A faster, more informative Stremio for LG webOS TVs. Fork of [kieranbrown/stremio-webos](https://github.com/kieranbrown/stremio-webos) (Stremio Theater frontend + the official Stremio streaming server, with working default audio language selection).
 
-The official Stremio app has a bug where it always plays the first audio track in the list, ignoring the user's preferred audio language setting. This build fixes that by reading tracks from the TV's native media pipeline and automatically selecting the track matching your configured language.
+Built and tested on an **LG QNED73 running webOS 25** in Developer Mode. Other recent webOS TVs will probably work, but are untested.
 
-Built from [Stremio Theater v1.9.2](https://github.com/NoobyGains/stremio-vidaa-tv) with the official Stremio streaming server.
+## What's different
 
-## Prerequisites
+- **Torrent stats while loading** — download/upload speed, peers, swarm size and file progress on the loading/buffering screen, so you know whether a torrent is actually moving.
+- **Source picker as a horizontal grid** — 3 rows of cards scrolling sideways instead of one long list, **sorted by seeders**. Each card shows (parsed from Torrentio):
+  `👤 seeders · 💾 size · ⚙ source`, quality tags (4K / DV / HDR / HEVC / Atmos / REMUX…), audio languages, and the file name.
+- **Faster torrents** — applies Stremio's "fast" torrent profile (200 connections, 4 MB/s soft limit instead of 55 / 2.5 MB/s).
+- **Snappier UI** — no animations, no background blur, HTTP caching so the TV reuses compiled JS/wasm between launches, UI starts while the streaming server is still loading.
+- **Direct video** — the video player reads straight from the streaming server instead of through an extra proxy (falls back to the proxy automatically if needed).
+- Installs **alongside** the stock app (app id `io.strem.tvr`, title "StremioR", UI on port 8081).
 
-1. Install the [webOS ares CLI](https://www.npmjs.com/package/@webosose/ares-cli) — `npm i -g @webosose/ares-cli` (requires Node.js 20 for SSH compatibility)
-2. Either enable [Developer Mode](https://webostv.developer.lge.com/develop/getting-started/developer-mode-app) on your TV, or have [Homebrew Channel](https://github.com/webosbrew/webos-homebrew-channel) installed
-3. Configure your TV as a device — `ares-setup-device`
+## Install (prebuilt IPK)
 
-> **Note:** Developer Mode expires after 1000 hours and any sideloaded apps will be uninstalled. Rooted TVs with Homebrew Channel do not have this limitation.
+1. Download `io.strem.tvr_*.ipk` from the [latest release](https://github.com/jrubimf/StremioR/releases/latest).
+2. Enable [Developer Mode](https://webostv.developer.lge.com/develop/getting-started/developer-mode-app) on your TV (or use [Homebrew Channel](https://github.com/webosbrew/webos-homebrew-channel) on a rooted TV).
+3. Install it with either:
+   - **[webOS Dev Manager](https://github.com/webosbrew/dev-manager-desktop)** (GUI): add your TV with the Dev Mode passphrase → Apps → Install → pick the `.ipk`.
+   - **CLI**: `npm i -g @webos-tools/cli`, `ares-config -p tv`, `ares-setup-device` (add your TV), then `ares-install -d <device> io.strem.tvr_*.ipk`.
 
-## Install via Homebrew Channel
+> Developer Mode expires after 1000 hours and sideloaded apps get removed; re-enable and reinstall. Rooted TVs with Homebrew Channel don't have this limit.
+>
+> On Homebrew Channel you can add this repository: `https://raw.githubusercontent.com/jrubimf/StremioR/main/webosbrew/apps.json`
 
-If your TV is rooted with [Homebrew Channel](https://github.com/webosbrew/webos-homebrew-channel):
+After installing, sign in to Stremio again (it's a separate app from the stock one).
 
-1. Open Homebrew Channel on your TV
-2. Go to settings and add this repository: `https://raw.githubusercontent.com/kieranbrown/stremio-webos/main/webosbrew/apps.json`
-3. Find Stremio in the app list and install
+## Build from source
 
-## Install manually
-
-```sh
-make deploy
-```
-
-This downloads all dependencies, builds the app, packages the IPK, installs it on your TV, and launches it.
-
-Replace the default device name if needed: `make deploy DEVICE=myTV`
-
-### Other commands
+Requires Node 20, `make`, `curl`, `tar`, `patch`, `python3` and `@webos-tools/cli` (Git Bash works on Windows).
 
 ```sh
-make build     # Download dependencies + build (no install)
-make package   # Build + create IPK
-make restart   # Close + relaunch on TV
-make clean     # Remove build artifacts
+make deploy DEVICE=<your-ares-device>   # build + package + install + launch
+make build     # download dependencies + build service/www/
+make package   # build + create IPK
+make restart   # close + relaunch on TV
+make clean     # remove build artifacts
 ```
-
-## Auto-start on input select
-
-On rooted TVs, you can register Stremio as an input source so it appears in the TV's input list and can auto-launch:
-
-```sh
-luna-send-pub -n 1 'luna://com.webos.service.eim/addDevice' '{"appId":"io.strem.tv","pigImage":""}'
-```
-
-Run this via SSH on the TV.
 
 ## Credits
 
 - [Stremio](https://www.stremio.com/)
+- [kieranbrown/stremio-webos](https://github.com/kieranbrown/stremio-webos) — the webOS app this is based on
 - [NoobyGains/stremio-vidaa-tv](https://github.com/NoobyGains/stremio-vidaa-tv) — Theater frontend
 - [webOS Homebrew Project](https://www.webosbrew.org/)
+
+Unofficial; not affiliated with Stremio or LG.

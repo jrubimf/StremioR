@@ -7,12 +7,12 @@
   },
   "packages": [
     {
-      "id": "io.strem.tv",
-      "title": "Stremio",
-      "iconUri": "https://raw.githubusercontent.com/kieranbrown/stremio-webos/main/app/icon.png",
-      "manifestUrl": "https://github.com/kieranbrown/stremio-webos/releases/latest/download/manifest.json",
+      "id": "io.strem.tvr",
+      "title": "StremioR",
+      "iconUri": "https://raw.githubusercontent.com/jrubimf/StremioR/main/app/icon.png",
+      "manifestUrl": "https://github.com/jrubimf/StremioR/releases/latest/download/manifest.json",
       "pool": "main",
-      "shortDescription": "Stremio for webOS with working audio track selection."
+      "shortDescription": "Stremio for webOS: torrent stats, seeder-sorted source grid, faster startup."
     }
   ]
 }

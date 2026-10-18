@@ -4,13 +4,149 @@
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width,initial-scale=1">
     <title>Stremio</title>
-    <script>window.__STREMIO_SERVER_URL__ = 'http://127.0.0.1:8080';</script>
+    <script>window.__STREMIO_SERVER_URL__ = 'http://127.0.0.1:8081';</script>
     <script>
         if ('serviceWorker' in navigator) {
             navigator.serviceWorker.getRegistrations().then(function(rs) {
                 rs.forEach(function(r) { r.unregister(); });
             }).catch(function(){});
         }
+    </script>
+    <link rel="preconnect" href="https://api.strem.io" crossorigin>
+    <link rel="preconnect" href="https://v3-cinemeta.strem.io" crossorigin>
+    <link rel="preconnect" href="https://torrentio.strem.fun" crossorigin>
+    <link rel="preconnect" href="https://images.metahub.space">
+    <style>
+        /* No animations: 1ms instead of none, because the Solid transition groups only unmount
+           elements on transitionend/animationend; a single iteration so spinners don't spin at 1000Hz. */
+        *, *::before, *::after {
+            transition-duration: 1ms !important; transition-delay: 0s !important;
+            animation-duration: 1ms !important; animation-delay: 0s !important; animation-iteration-count: 1 !important;
+        }
+        /* Full-screen 15px blur on the details background is expensive on the TV GPU */
+        .details-omgjE .background-G0atu .image-fkksf.blurred-LTDh_ { filter: none !important; }
+        /* Stream picker (details.chunk.js CSS-module classes, pinned to VIDAA_REF): a 3-row grid that
+           scrolls horizontally. Navigation is geometric, so up/down moves within a column, left/right across. */
+        .details-omgjE:has(.streams-ky0iI) .info-c3Gsa { height: 26vh !important; padding-top: 1.5rem !important; padding-bottom: 0 !important; }
+        .details-omgjE:has(.streams-ky0iI) .info-c3Gsa .logo-rSs1m { height: 6rem !important; margin-bottom: 0.5rem !important; }
+        .details-omgjE:has(.streams-ky0iI) .info-c3Gsa .description-Vy9xR { -webkit-line-clamp: 2 !important; }
+        .streams-ky0iI .streams-list-atX0D { display: grid !important; grid-auto-flow: column; grid-template-rows: repeat(3, 19vh); grid-auto-columns: 30vw; gap: 1.5vh 1.2vw; }
+        .streams-ky0iI .streams-list-atX0D > * { margin: 0 !important; }
+        .stream-rpXLF { height: 19vh !important; width: auto !important; padding: 1rem 1.5rem !important; align-items: flex-start !important; }
+        .stream-rpXLF .play-icon-Z9iaQ { margin-top: 0.3rem; margin-right: 1.2rem !important; }
+        .stream-rpXLF .details-d5pag { align-self: stretch; justify-content: flex-start !important; }
+        .stream-rpXLF .details-d5pag .name-IfzDf { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 100%; }
+        .stream-rpXLF .details-d5pag { width: 100%; }
+        .stream-rpXLF .details-d5pag .description-yTp1H { white-space: normal !important; width: 100%; }
+        .sc > div { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; margin-top: 0.35rem; }
+        .sc .sc-stats { font-size: 1.6rem; font-weight: 700; color: rgba(255, 255, 255, 0.95); }
+        .sc .sc-tags { font-size: 1.3rem; font-weight: 700; color: #b9a6ff; letter-spacing: 0.02em; }
+        .sc .sc-langs { font-size: 1.3rem; color: rgba(255, 255, 255, 0.8); }
+        .sc .sc-file { font-size: 1.1rem; color: rgba(255, 255, 255, 0.4); }
+        .stream-details-bgXP4 { display: none !important; }
+        .torrent-stats { position: absolute; left: 50%; bottom: 12%; transform: translateX(-50%); padding: 1.2rem 2.4rem; border-radius: 1rem; background: rgba(0, 0, 0, 0.55); color: rgba(255, 255, 255, 0.9); font-size: 1.6rem; line-height: 1.6; text-align: center; white-space: pre; font-variant-numeric: tabular-nums; }
+        .torrent-stats:empty { display: none; }
+    </style>
+    <script>
+        // Media straight from the streaming server: <video> doesn't need CORS, so point its src at :11470 instead of
+        // pushing every video byte through the launch.js proxy. Only http://127.0.0.1:8081/... is rewritten (blob: URLs
+        // from hls.js and all fetch/XHR stay on :8081). If a direct load errors, retry once via the proxy before the player sees it.
+        (function() {
+            var proxied = location.origin + '/', direct = 'http://127.0.0.1:11470/';
+            var desc = Object.getOwnPropertyDescriptor(HTMLMediaElement.prototype, 'src');
+            Object.defineProperty(HTMLMediaElement.prototype, 'src', {
+                configurable: true, enumerable: desc.enumerable, get: desc.get,
+                set: function(url) {
+                    this.__proxiedSrc = null;
+                    if (typeof url === 'string' && url.indexOf(proxied) === 0 && proxied !== direct) {
+                        this.__proxiedSrc = url;
+                        url = direct + url.slice(proxied.length);
+                    }
+                    desc.set.call(this, url);
+                }
+            });
+            document.addEventListener('error', function(e) {
+                var el = e.target;
+                if (!(el instanceof HTMLMediaElement) || !el.__proxiedSrc) return;
+                var url = el.__proxiedSrc;
+                e.stopImmediatePropagation();
+                console.warn('Direct media failed, falling back to proxy', url);
+                el.__proxiedSrc = null;
+                desc.set.call(el, url);
+                el.load();
+            }, true);
+        })();
+
+        // Sort streams by seeders (Torrentio/MediaFusion "👤 123", or "Seeders: 123"); streams without a count keep their order at the end.
+        window.__sortStreams = function(streams) {
+            return streams.map(function(s, i) {
+                var m = /(?:👤|seeders?:?|seeds?:?)\s*(\d+)/i.exec((s.description || s.title || '') + ' ' + (s.name || ''));
+                return { s: s, i: i, p: m ? +m[1] : -1 };
+            }).sort(function(a, b) { return b.p - a.p || a.i - b.i; }).map(function(x) { return x.s; });
+        };
+
+        // Stream card body built from Torrentio's description ("[pack]\nfile\n👤 12 💾 1.4 GB ⚙️ src\nMulti Audio / 🇬🇧 / 🇫🇷"):
+        // stats first, then quality tags from the file name, then languages, then the file name (which used to push the rest out).
+        var LANG = { GB: 'EN', US: 'EN', ES: 'ES', MX: 'ES-LA', PT: 'PT', BR: 'PT-BR', FR: 'FR', DE: 'DE', IT: 'IT', RU: 'RU', UA: 'UK', PL: 'PL', NL: 'NL',
+            JP: 'JA', KR: 'KO', CN: 'ZH', TW: 'ZH-TW', IN: 'HI', SA: 'AR', TR: 'TR', SE: 'SV', DK: 'DA', NO: 'NO', FI: 'FI', GR: 'EL', CZ: 'CS', HU: 'HU', RO: 'RO', IL: 'HE', TH: 'TH', VN: 'VI', ID: 'ID' };
+        var TAGS = [[/\b(2160p|4k|uhd)\b/i, '4K'], [/\b1080p\b/i, '1080p'], [/\b720p\b/i, '720p'], [/\b(480p|576p)\b/i, 'SD'],
+            [/\b(dv|dovi|dolby[ .]?vision)\b/i, 'DV'], [/\bhdr10(\+|plus)/i, 'HDR10+'], [/\bhdr(10)?\b/i, 'HDR'],
+            [/\bremux\b/i, 'REMUX'], [/\b(blu-?ray|bdrip|brrip)\b/i, 'BluRay'], [/\bweb-?(dl|rip)?\b/i, 'WEB'],
+            [/\b(x265|hevc|h\.?265)\b/i, 'HEVC'], [/\bav1\b/i, 'AV1'], [/\b(x264|h\.?264|avc)\b/i, 'H.264'], [/\b10[ -]?bit\b/i, '10bit'],
+            [/\batmos\b/i, 'Atmos'], [/\btrue-?hd\b/i, 'TrueHD'], [/\bdts(-?hd|-?x)?\b/i, 'DTS'], [/\b(ddp|dd\+|eac3)/i, 'DD+'], [/(^|[^\d.])7\.1(?!\d)/, '7.1'], [/(^|[^\d.])5\.1(?!\d)/, '5.1']];
+        window.__streamCard = function(stream) {
+            var lines = (stream.description || stream.title || '').split('\n'), stat = -1;
+            for (var i = 0; i < lines.length; i++) if (/👤|💾/.test(lines[i])) { stat = i; break; }
+            var statLine = stat >= 0 ? lines[stat] : '', files = stat >= 0 ? lines.slice(0, stat) : lines,
+                langLine = stat >= 0 ? lines.slice(stat + 1).join(' / ') : '',
+                seeds = /👤\s*(\d+)/.exec(statLine), size = /💾\s*([\d.,]+\s*[KMGT]i?B)/i.exec(statLine), src = /⚙️\s*(.+)$/.exec(statLine);
+            var text = files.join(' ') + ' ' + (stream.name || ''), tags = [], seen = {};
+            TAGS.forEach(function(t) { if (t[0].test(text) && !seen[t[1]]) { seen[t[1]] = 1; tags.push(t[1]); } });
+            if (seen.HDR && seen['HDR10+']) tags.splice(tags.indexOf('HDR'), 1);
+            var langs = langLine.replace(/([\uD83C][\uDDE6-\uDDFF]){2}/g, function(f) {
+                var cc = String.fromCharCode(f.charCodeAt(1) - 0xDDE6 + 65, f.charCodeAt(3) - 0xDDE6 + 65);
+                return LANG[cc] || cc;
+            }).split(/\s*\/\s*/).filter(Boolean).join(' · ');
+            var root = document.createElement('div');
+            function row(cls, txt) { if (!txt) return; var d = document.createElement('div'); d.className = cls; d.textContent = txt; root.appendChild(d); return d; }
+            root.className = 'sc';
+            var n = seeds ? +seeds[1] : -1, s = row('sc-stats', [seeds && '👤 ' + seeds[1], size && '💾 ' + size[1], src && '⚙ ' + src[1].trim()].filter(Boolean).join('    '));
+            if (s && n >= 0) s.style.color = n >= 50 ? '#5fe08f' : n >= 10 ? '#f0d36a' : '#f07a6a';
+            row('sc-tags', tags.join('  '));
+            row('sc-langs', langs && '🗣 ' + langs);
+            row('sc-file', files[files.length - 1]);
+            if (!root.firstChild) row('sc-file', stream.description || '');
+            return root;
+        };
+
+        // Live torrent stats shown on the player loading/buffering screen. Returns a DOM node; polling stops once it leaves the DOM.
+        window.__torrentStats = function(getSelected, getServerUrl) {
+            var el = document.createElement('div'), attached = false, ticks = 0;
+            el.className = 'torrent-stats';
+            function size(b) {
+                return b >= 1073741824 ? (b / 1073741824).toFixed(2) + ' GB' : b >= 1048576 ? (b / 1048576).toFixed(1) + ' MB' : Math.round((b || 0) / 1024) + ' KB';
+            }
+            function tick() {
+                ticks++;
+                if (el.isConnected) attached = true;
+                else if (attached || ticks > 10) return clearInterval(timer);
+                var sel = getSelected(), stream = sel && sel.stream, base = getServerUrl();
+                if (!stream || !stream.infoHash || !base) return;
+                var url = base.replace(/\/$/, '') + '/' + stream.infoHash + (typeof stream.fileIdx === 'number' ? '/' + stream.fileIdx : '') + '/stats.json';
+                fetch(url).then(function(r) { return r.json(); }).then(function(d) {
+                    if (!d || typeof d.downloadSpeed !== 'number') { el.textContent = 'Connecting to peers…'; return; }
+                    var lines = [
+                        '⬇ ' + size(d.downloadSpeed) + '/s     ⬆ ' + size(d.uploadSpeed) + '/s',
+                        'Peers ' + (d.peers || 0) + (d.unchoked != null ? '  (unchoked ' + d.unchoked + ')' : '') + (d.swarmSize ? '     Swarm ' + d.swarmSize : ''),
+                        'Downloaded ' + size(d.downloaded) + (d.streamLen ? '     File ' + ((d.streamProgress || 0) * 100).toFixed(1) + '% of ' + size(d.streamLen) : '')
+                    ];
+                    el.textContent = lines.join('\n');
+                }).catch(function() {});
+            }
+            var timer = setInterval(tick, 1000);
+            tick();
+            return el;
+        };
     </script>
     <script defer src="runtime.js"></script>
     <script defer src="main.js"></script>

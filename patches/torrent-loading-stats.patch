@@ -1,0 +1,11 @@
+--- player.chunk.js
++++ player.chunk.js
+@@ -1396,7 +1396,7 @@
+                                             get fallback() {
+                                                 return (0, o.a0)(m.Rh, {})
+                                             }
+-                                        })), (0, o.gb)((() => (0, r.s7)(e, ne.loading))), e
++                                        })), (0, r.Yr)(e, window.__torrentStats((() => T.state().selected), (() => A.state().transportUrl))), (0, o.gb)((() => (0, r.s7)(e, ne.loading))), e
+                                     }
+                                 })
+                             }

@@ -21,7 +21,7 @@ jobs:
         run: jq --arg v "${{ steps.version.outputs.version }}" '.version = $v' app/appinfo.json > tmp.json && mv tmp.json app/appinfo.json
 
       - name: Install ares-cli
-        run: npm i -g @webosose/ares-cli
+        run: npm i -g @webos-tools/cli
 
       - name: Build
         run: make build
@@ -31,15 +31,15 @@ jobs:
 
       - name: Generate manifest
         run: |
-          IPK="io.strem.tv_${{ steps.version.outputs.version }}_all.ipk"
+          IPK="io.strem.tvr_${{ steps.version.outputs.version }}_all.ipk"
           SHA256=$(sha256sum "$IPK" | cut -d' ' -f1)
           SIZE=$(stat --format=%s "$IPK")
           cat > manifest.json << EOF
           {
-            "id": "io.strem.tv",
+            "id": "io.strem.tvr",
             "version": "${{ steps.version.outputs.version }}",
             "type": "web",
-            "title": "Stremio",
+            "title": "StremioR",
             "iconUri": "https://raw.githubusercontent.com/${{ github.repository }}/main/app/icon.png",
             "sourceUrl": "https://github.com/${{ github.repository }}",
             "rootRequired": false,
@@ -55,5 +55,5 @@ jobs:
         uses: softprops/action-gh-release@v2
         with:
           files: |
-            io.strem.tv_${{ steps.version.outputs.version }}_all.ipk
+            io.strem.tvr_${{ steps.version.outputs.version }}_all.ipk
             manifest.json

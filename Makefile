@@ -1,5 +1,5 @@
-DEVICE ?= tv
-APP_ID = io.strem.tv
+DEVICE ?= LG-TV
+APP_ID = io.strem.tvr
 SERVER_VERSION = 4.20.17
 VIDAA_REF = 208d437e5138adff0865443a2a88c4fcee84ece6
 VIDAA_REPO = https://github.com/NoobyGains/stremio-vidaa-tv/archive/$(VIDAA_REF).tar.gz
@@ -17,23 +17,23 @@ service/server.js:
 
 service/bin/ffmpeg service/bin/ffprobe:
 	@echo "==> Downloading static ffmpeg+ffprobe v$(FFMPEG_VERSION) (aarch64)..."
-	@rm -rf /tmp/stremio-ffmpeg && mkdir -p /tmp/stremio-ffmpeg service/bin
-	@curl -sLo /tmp/stremio-ffmpeg/ffmpeg.tar.xz $(FFMPEG_URL)
-	@echo "$(FFMPEG_SHA256)  /tmp/stremio-ffmpeg/ffmpeg.tar.xz" | shasum -a 256 -c -
-	@tar xJ --strip-components=1 -f /tmp/stremio-ffmpeg/ffmpeg.tar.xz -C /tmp/stremio-ffmpeg
-	@cp /tmp/stremio-ffmpeg/ffmpeg /tmp/stremio-ffmpeg/ffprobe service/bin/
+	@rm -rf .build/ffmpeg && mkdir -p .build/ffmpeg service/bin
+	@curl -sLo .build/ffmpeg/ffmpeg.tar.xz $(FFMPEG_URL)
+	@echo "$(FFMPEG_SHA256)  .build/ffmpeg/ffmpeg.tar.xz" | shasum -a 256 -c -
+	@tar xJ --strip-components=1 -f .build/ffmpeg/ffmpeg.tar.xz -C .build/ffmpeg
+	@cp .build/ffmpeg/ffmpeg .build/ffmpeg/ffprobe service/bin/
 	@chmod +x service/bin/ffmpeg service/bin/ffprobe
-	@rm -rf /tmp/stremio-ffmpeg
+	@rm -rf .build/ffmpeg
 
 build: service/server.js service/bin/ffmpeg service/bin/ffprobe
 	@echo "==> Downloading Vidaa frontend..."
-	@rm -rf /tmp/stremio-vidaa-build && mkdir -p /tmp/stremio-vidaa-build
-	@curl -sL $(VIDAA_REPO) | tar xz --strip-components=1 -C /tmp/stremio-vidaa-build
+	@rm -rf .build/vidaa && mkdir -p .build/vidaa
+	@curl -sL $(VIDAA_REPO) | tar xz --strip-components=1 -C .build/vidaa
 	@echo "==> Building service/www/..."
 	@rm -rf service/www && mkdir -p service/www
-	@cp /tmp/stremio-vidaa-build/*.js /tmp/stremio-vidaa-build/*.wasm /tmp/stremio-vidaa-build/*.ttf /tmp/stremio-vidaa-build/*.png /tmp/stremio-vidaa-build/*.svg service/www/
+	@cp .build/vidaa/*.js .build/vidaa/*.wasm .build/vidaa/*.ttf .build/vidaa/*.png .build/vidaa/*.svg service/www/
 	@cp service/index.html service/www/index.html
-	@rm -rf /tmp/stremio-vidaa-build
+	@rm -rf .build/vidaa
 	@for p in patches/*.patch; do \
 		echo "    Applying $$(basename $$p)..."; \
 		patch -p0 -d service/www < "$$p"; \
@@ -59,4 +59,4 @@ restart:
 	@ares-launch --device $(DEVICE) $(APP_ID)
 
 clean:
-	rm -rf service/www service/server.js service/bin *.ipk
+	rm -rf service/www service/server.js service/bin .build *.ipk
