@@ -72,6 +72,9 @@ function proxyToStreaming(req, res, attempt) {
         res.writeHead(proxyRes.statusCode, proxyRes.headers);
         proxyRes.pipe(res);
     });
+    // Client went away (seek, hls.js abort, player closed): drop the upstream request too, or the streaming
+    // server keeps reading the torrent into a paused socket that never drains
+    res.on('close', function() { if (!res.writableFinished) proxy.destroy(); });
     proxy.on('error', function(err) {
         if (err.code === 'ECONNREFUSED' && idempotent && attempt < 80 && !res.headersSent) {
             return setTimeout(function() { proxyToStreaming(req, res, attempt + 1); }, 250);

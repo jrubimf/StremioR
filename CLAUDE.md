@@ -9,7 +9,7 @@ Personal fork, built for and tested on one TV only:
 - **TV:** LG QNED73 (large screen, 1920x1080 app resolution) — favour dense, information-rich layouts
 - **OS:** webOS 25 ("Magic webOS 25"); modern Chromium (`:has()`, `overflow-wrap: anywhere` etc. work — Chrome 68 caveats elsewhere in this file are upstream's)
 - **Mode:** Developer Mode (not rooted, no Homebrew Channel): sideload only, jailed SSH shell (no `/etc/profile`, `ares-log`/`ares-shell` useless), limited app storage (~59 MB IPK; uninstall old builds if install says "no available space")
-- **ares device:** `LG-TV` = `prisoner@192.168.0.15:9922`, **profile `tv`**
+- **ares device:** `tv` = `prisoner@192.168.0.15:9922`, **profile `tv`**
 - **Build host:** Windows 11 + Git Bash + Node 20
 
 Fork-specific differences from upstream:
@@ -80,7 +80,7 @@ One-line hooks into `details.chunk.js` / `player.chunk.js` that call `window.__s
 
 ## Deploy
 
-Requires LG's **`@webos-tools/cli`** (`npm i -g @webos-tools/cli`, then `ares-config -p tv`). Do not use `@webosose/ares-cli`: it only has the OSE profile and installs fail on a TV with `rm: can't remove '/media/developer/temp'`. The TV is device `LG-TV` (Makefile default). Works from Git Bash on Windows (build temp files go to `.build/`, not `/tmp`). `service/package.properties` marks `ffmpeg`/`ffprobe` as 755 — needed because Windows has no exec bit.
+Requires LG's **`@webos-tools/cli`** (`npm i -g @webos-tools/cli`, then `ares-config -p tv`). Do not use `@webosose/ares-cli`: it only has the OSE profile and installs fail on a TV with `rm: can't remove '/media/developer/temp'`. The TV is device `tv` (Makefile default). Works from Git Bash on Windows (build temp files go to `.build/`, not `/tmp`). `service/package.properties` marks `ffmpeg`/`ffprobe` as 755 — needed because Windows has no exec bit.
 
 ```sh
 make deploy    # build + package + install + launch

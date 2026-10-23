@@ -1,20 +1,98 @@
 --- video.chunk.js
 +++ video.chunk.js
-@@ -403,6 +403,6 @@
-                                     return (p ? (window.__FORCE_TRANSCODE__ = !1, Promise.resolve(!1)) : t.canPlayStream({
+@@ -331,7 +331,15 @@
+             e.exports = function(e) {
+                 function t(r) {
+                     var h = new e(r = r || {});
+-                    h.on("error", (function(e) {
++                    var __time = null;
++                    h.on("propChanged", (function(e, t) {
++                        "time" === e && null !== t && (__time = t)
++                    })), h.on("error", (function(e) {
++                        // StremioR: decode/unsupported error on direct playback -> retry once via the server's HLS remux (it only transcodes the tracks the TV can't play), keeping the position
++                        if (m && !m.__hls && !m.forceTranscoding && (82 === e.code || 83 === e.code)) return console.warn("Direct playback failed, retrying via HLS", e), R("load", Object.assign({}, m, {
++                            __hls: !0,
++                            time: null !== __time ? __time : m.time
++                        }));
+                         T.emit("error", e), e.critical && R("unload")
+                     })), h.on("propValue", S.bind(null, "propValue")), h.on("propChanged", S.bind(null, "propChanged")), e.manifest.events.filter((function(e) {
+                         return !["error", "propValue", "propChanged"].includes(e)
+@@ -401,10 +409,10 @@
+                                             maxAudioChannels: h
+                                         }),
+                                         p = !!(n.forceTranscoding || window.__FORCE_TRANSCODE__);
+-                                    return (p ? (window.__FORCE_TRANSCODE__ = !1, Promise.resolve(!1)) : t.canPlayStream({
++                                    return (p || n.__hls ? (window.__FORCE_TRANSCODE__ = !1, Promise.resolve(!1)) : t.canPlayStream({
                                          url: r
                                      }, f)).catch((function(e) {
 -                                        return console.warn("Media probe error", e), !1
 +                                        return console.warn("Media probe error, falling back to direct playback", e), !0
                                      })).then((function(e) {
                                          if (e) return {
+                                             mediaURL: r,
+@@ -498,7 +506,7 @@
+                                     commandArgs: n
+                                 })), !0;
+                             case "unload":
+-                                return m = null, p = !1, v = [], y = null, A("stream"), A("videoParams"), !1;
++                                return m = null, p = !1, v = [], y = null, __time = null, A("stream"), A("videoParams"), !1;
+                             case "destroy":
+                                 return R("unload"), b = !0, h.dispatch({
+                                     type: "command",
+@@ -18648,6 +18656,7 @@
+                 }), []),
+                 maxAudioChannels: function() {
+                     if (/firefox/i.test(window.navigator.userAgent)) return 6;
++                    if (/web0s|webos/i.test(window.navigator.userAgent)) return 6;
+                     if (!window.AudioContext || window.chrome || window.cast) return 2;
+                     var e = (new AudioContext).destination.maxChannelCount;
+                     return e > 0 ? e : 2
 --- 1477.chunk.js
 +++ 1477.chunk.js
-@@ -16268,6 +16268,6 @@
-                                     return (n.forceTranscoding ? Promise.resolve(!1) : t.canPlayStream({
+@@ -16197,7 +16197,15 @@
+             e.exports = function(e) {
+                 function t(r) {
+                     var h = new e(r = r || {});
+-                    h.on("error", (function(e) {
++                    var __time = null;
++                    h.on("propChanged", (function(e, t) {
++                        "time" === e && null !== t && (__time = t)
++                    })), h.on("error", (function(e) {
++                        // StremioR: decode/unsupported error on direct playback -> retry once via the server's HLS remux (it only transcodes the tracks the TV can't play), keeping the position
++                        if (p && !p.__hls && !p.forceTranscoding && (82 === e.code || 83 === e.code)) return console.warn("Direct playback failed, retrying via HLS", e), R("load", Object.assign({}, p, {
++                            __hls: !0,
++                            time: null !== __time ? __time : p.time
++                        }));
+                         T.emit("error", e), e.critical && R("unload")
+                     })), h.on("propValue", S.bind(null, "propValue")), h.on("propChanged", S.bind(null, "propChanged")), e.manifest.events.filter((function(e) {
+                         return !["error", "propValue", "propChanged"].includes(e)
+@@ -16266,10 +16274,10 @@
+                                             audioCodecs: d,
+                                             maxAudioChannels: h
+                                         });
+-                                    return (n.forceTranscoding ? Promise.resolve(!1) : t.canPlayStream({
++                                    return (n.forceTranscoding || n.__hls ? Promise.resolve(!1) : t.canPlayStream({
                                          url: r
                                      }, f)).catch((function(e) {
 -                                        return console.warn("Media probe error", e), !1
 +                                        return console.warn("Media probe error, falling back to direct playback", e), !0
                                      })).then((function(e) {
                                          if (e) return {
+                                             mediaURL: r,
+@@ -16363,7 +16371,7 @@
+                                     commandArgs: n
+                                 })), !0;
+                             case "unload":
+-                                return p = null, m = !1, v = [], y = null, A("stream"), A("videoParams"), !1;
++                                return p = null, m = !1, v = [], y = null, __time = null, A("stream"), A("videoParams"), !1;
+                             case "destroy":
+                                 return R("unload"), b = !0, h.dispatch({
+                                     type: "command",
+@@ -19199,6 +19207,7 @@
+                 }), []),
+                 maxAudioChannels: function() {
+                     if (/firefox/i.test(window.navigator.userAgent)) return 6;
++                    if (/web0s|webos/i.test(window.navigator.userAgent)) return 6;
+                     if (!window.AudioContext || window.chrome || window.cast) return 2;
+                     var e = (new AudioContext).destination.maxChannelCount;
+                     return e > 0 ? e : 2

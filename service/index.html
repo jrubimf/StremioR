@@ -67,13 +67,15 @@
             });
             document.addEventListener('error', function(e) {
                 var el = e.target;
-                if (!(el instanceof HTMLMediaElement) || !el.__proxiedSrc) return;
-                var url = el.__proxiedSrc;
+                // Only network/source errors: a decode error would fail the same way via the proxy, so let the player handle it (it retries as HLS)
+                if (!(el instanceof HTMLMediaElement) || !el.__proxiedSrc || !el.error || el.error.code === 3) return;
+                var url = el.__proxiedSrc, time = el.currentTime;
                 e.stopImmediatePropagation();
                 console.warn('Direct media failed, falling back to proxy', url);
                 el.__proxiedSrc = null;
                 desc.set.call(el, url);
                 el.load();
+                el.currentTime = time;
             }, true);
         })();
 
